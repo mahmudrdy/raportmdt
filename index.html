@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Input Nilai Rapor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+
+  <div class="flex-grow overflow-y-auto p-6">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow flex flex-col h-full">
+      <h1 class="text-2xl font-bold mb-4 text-center text-blue-700">Form Input Nilai Rapor</h1>
+
+      <!-- PILIHAN KELAS DAN MAPEL -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block mb-1 font-medium">Kelas</label>
+          <select id="kelas" class="w-full border px-3 py-2 rounded">
+            <option>X A</option>
+            <option>X B</option>
+            <option>XI MIPA</option>
+            <option>XI IPS</option>
+          </select>
+        </div>
+        <div>
+          <label class="block mb-1 font-medium">Mata Pelajaran</label>
+          <select id="mapel" class="w-full border px-3 py-2 rounded"></select>
+        </div>
+      </div>
+
+      <button onclick="muatSiswa()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-fit">🔄 Muat Siswa</button>
+
+      <!-- FORM NILAI -->
+      <div id="formNilai" class="mt-6 overflow-auto flex-grow"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzt_x8Hui2qN4jF0n9bLG4Ob8e-MyI4UzPkLPCqVO5rq8-oulEtFLvtWe0j16S81J5Kig/exec";
+
+    // Daftar mapel per kelas
+    const mapelX = [
+      "Alfatih",
+      "Fathul Qorib",
+      "Kifayatul Awam",
+      "Akhlakul Lil Banin",
+      "Tasrif",
+      "Ilmu Alquran"
+    ];
+
+    const mapelXI = [
+      "Alfatih",
+      "Fathul Qorib",
+      "Kifayatul Awam",
+      "Akhlakul Lil Banin",
+      "Tasrif",
+      "Riyadus Sholihin"
+    ];
+
+    // Update mata pelajaran berdasarkan kelas
+    document.getElementById("kelas").addEventListener("change", function () {
+      const mapelSelect = document.getElementById("mapel");
+      const kelas = this.value;
+      let list = [];
+
+      if (kelas === "X A" || kelas === "X B") {
+        list = mapelX;
+      } else if (kelas === "XI MIPA" || kelas === "XI IPS") {
+        list = mapelXI;
+      }
+
+      mapelSelect.innerHTML = "";
+      list.forEach(mapel => {
+        const opt = document.createElement("option");
+        opt.value = mapel;
+        opt.textContent = mapel;
+        mapelSelect.appendChild(opt);
+      });
+    });
+
+    // Set awal pilihan mapel saat halaman pertama kali dimuat
+    document.getElementById("kelas").dispatchEvent(new Event("change"));
+
+    async function muatSiswa() {
+      const kelas = document.getElementById("kelas").value;
+      const mapel = document.getElementById("mapel").value;
+      const container = document.getElementById("formNilai");
+
+      container.innerHTML = `<p class="text-gray-600">⏳ Memuat siswa...</p>`;
+
+      try {
+        const res = await fetch(`${API_URL}?kelas=${encodeURIComponent(kelas)}`);
+        const data = await res.json();
+
+        if (!data.length) {
+          container.innerHTML = `<p class="text-red-500">❌ Tidak ada data siswa ditemukan.</p>`;
+          return;
+        }
+
+        let html = `
+          <form id="nilaiForm" class="flex flex-col h-full">
+            <div class="overflow-auto border border-gray-300 rounded shadow max-h-[60vh]">
+              <table class="min-w-full text-sm text-left">
+                <thead class="bg-gray-100 font-semibold sticky top-0 z-10">
+                  <tr>
+                    <th class="border px-4 py-2">#</th>
+                    <th class="border px-4 py-2">NISN</th>
+                    <th class="border px-4 py-2">Nama</th>
+                    <th class="border px-4 py-2">Tes Lisan</th>
+                    <th class="border px-4 py-2">Tes Tulis</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+
+        data.forEach((row, i) => {
+          html += `
+            <tr class="odd:bg-white even:bg-gray-50">
+              <td class="border px-4 py-2">${i + 1}</td>
+              <td class="border px-4 py-2">
+                ${row[1]}
+                <input type="hidden" name="nisn" value="${row[1]}">
+              </td>
+              <td class="border px-4 py-2">
+                ${row[2]}
+                <input type="hidden" name="nama" value="${row[2]}">
+              </td>
+              <td class="border px-2 py-2">
+                <input type="number" name="lisan" class="w-full border rounded px-2 py-1" required>
+              </td>
+              <td class="border px-2 py-2">
+                <input type="number" name="tulis" class="w-full border rounded px-2 py-1" required>
+              </td>
+            </tr>`;
+        });
+
+        html += `
+                </tbody>
+              </table>
+            </div>
+            <input type="hidden" name="kelas" value="${kelas}">
+            <input type="hidden" name="mapel" value="${mapel}">
+            <div class="mt-4 text-right">
+              <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">💾 Simpan Nilai</button>
+            </div>
+          </form>`;
+
+        container.innerHTML = html;
+
+        document.getElementById("nilaiForm").onsubmit = async function (e) {
+          e.preventDefault();
+          const form = e.target;
+
+          const nilai = [...form.querySelectorAll('[name="nisn"]')].map((_, i) => ({
+            nisn: form.querySelectorAll('[name="nisn"]')[i].value,
+            nama: form.querySelectorAll('[name="nama"]')[i].value,
+            lisan: form.querySelectorAll('[name="lisan"]')[i].value,
+            tulis: form.querySelectorAll('[name="tulis"]')[i].value,
+            kelas: form.kelas.value,
+            mapel: form.mapel.value
+          }));
+
+          try {
+            await fetch(API_URL, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(nilai)
+            });
+
+            alert("✅ Nilai berhasil dikirim");
+            container.innerHTML = "";
+          } catch (err) {
+            alert("❌ Gagal menyimpan: " + err.message);
+          }
+        };
+
+      } catch (err) {
+        container.innerHTML = `<p class="text-red-500">❌ Gagal ambil siswa: ${err.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
